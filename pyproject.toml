@@ -28,6 +28,11 @@ dependencies = [
   "pytest>=8.3.5",
 ]
 
+[project.optional-dependencies]
+marimo = [
+    "marimo>=0.23.8",
+]
+
 [tool.uv.sources]
 llms-from-scratch = { workspace = true }
 
@@ -37,6 +42,7 @@ dev = [
     "twine>=6.1.0",
     "tokenizers>=0.22.0",
     "safetensors>=0.6.2",
+    "ruff>=0.15.14",
 ]
 bonus = [
     "blobfile>=3.0.0",
