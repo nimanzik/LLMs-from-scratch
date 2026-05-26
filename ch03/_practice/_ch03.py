@@ -28,11 +28,11 @@ def _(torch):
 @app.cell
 def _(nn, torch):
     class SelfAttentionV1(nn.Module):
-        def __init__(self, in_dim: int, out_dim: int) -> None:
+        def __init__(self, d_in: int, d_out: int) -> None:
             super().__init__()
-            self.W_q = nn.Parameter(torch.rand(in_dim, out_dim))
-            self.W_k = nn.Parameter(torch.rand(in_dim, out_dim))
-            self.W_v = nn.Parameter(torch.rand(in_dim, out_dim))
+            self.W_q = nn.Parameter(torch.rand(d_in, d_out))
+            self.W_k = nn.Parameter(torch.rand(d_in, d_out))
+            self.W_v = nn.Parameter(torch.rand(d_in, d_out))
 
         def forward(self, x: torch.Tensor) -> torch.Tensor:
             Q = x @ self.W_q
@@ -46,16 +46,53 @@ def _(nn, torch):
             # context vectors
             return A @ V
 
-    return (SelfAttentionV1,)
+
+    class SelfAttentionV2(nn.Module):
+        def __init__(self, d_in: int, d_out: int, qkv_bias: bool = False) -> None:
+            super().__init__()
+            self.W_q = nn.Linear(d_in, d_out, bias=qkv_bias)
+            self.W_k = nn.Linear(d_in, d_out, bias=qkv_bias)
+            self.W_v = nn.Linear(d_in, d_out, bias=qkv_bias)
+
+        def forward(self, x: torch.Tensor) -> torch.Tensor:
+            Q = self.W_q(x)
+            K = self.W_k(x)
+            V = self.W_v(x)
+        
+            d_k = K.shape[1]
+            # Attention weights
+            A = torch.softmax((Q @ K.T) / d_k**0.5, dim=-1)
+
+            # context vectors
+            return A @ V
+
+    return SelfAttentionV1, SelfAttentionV2
 
 
 @app.cell
 def _(SelfAttentionV1, inputs, torch):
-    torch.manual_seed(123)
-    in_dim = 3
-    out_dim = 2
+    d_in = 3
+    d_out = 2
 
-    sa_v1 = SelfAttentionV1(in_dim, out_dim)
+    torch.manual_seed(123)
+    sa_v1 = SelfAttentionV1(d_in, d_out)
+    print(sa_v1(inputs))
+    return d_in, d_out, sa_v1
+
+
+@app.cell
+def _(SelfAttentionV2, d_in, d_out, inputs, torch):
+    torch.manual_seed(789)
+    sa_v2 = SelfAttentionV2(d_in, d_out)
+    print(sa_v2(inputs))
+    return (sa_v2,)
+
+
+@app.cell
+def _(inputs, nn, sa_v1, sa_v2):
+    sa_v1.W_q = nn.Parameter(sa_v2.W_q.weight.T)
+    sa_v1.W_k = nn.Parameter(sa_v2.W_k.weight.T)
+    sa_v1.W_v = nn.Parameter(sa_v2.W_v.weight.T)
     print(sa_v1(inputs))
     return
 
